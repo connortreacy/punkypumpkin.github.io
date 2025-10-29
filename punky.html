@@ -11,23 +11,31 @@
     </style>
 </head>
 <body>
-    <button id="startCamBtn">Start Camera</button> | <button id="startRTBtn">Start Realtime</button> | <button id="stopRTBtn">Stop Realtime</button><br>
-    <video id="cam" autoplay muted playsinline></video>
-    <audio id="remoteAudio" autoplay></audio>
-    
+    <div id="ui">
+        <div>
+            <video id="cam" autoplay muted playsinline></video>
+            <audio id="remoteAudio" autoplay></audio>
+        </div>
+        <div>
+            <button id="startCamBtn">Start Camera</button>
+            <button id="startRTBtn">Start Realtime</button>
+            <button id="stopRTBtn">Stop Realtime</button>
+        </div>
+        <div>
+            <button id="touchInputFace">Touch Face</button>
+            <button id="touchInputHand">Touch Hand</button>
+        </div>
+    </div>
     <script>
         // replace hard-coded API key with a text input + saved value
         const OPENAI_API_KEY_STORAGE_KEY = "openai_api_key";
         let OPENAI_API_KEY = localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY) || "";
-
-        const OPENAI_RT_PUNKY_PROMPT = "You're a chatty animatronic pumpkin called Punky the Pumpkin. You're an entertainer at a party full of 4-6 year olds. You speak with an exaggerated victorian accent and a creaky tone, and you sometimes tell jokes suitable for young children. You will receive textual descriptions of the people you're speaking to. Use these descriptions to make the conversation more engaging and relevant to them. Don't imagine or make up details about them, just use what you're given.";
-
-        //const LLAMA_API_VISION_PROMPT = "You are a jovial and observant robot at a kids party. Your job is to provide concise descriptions of the people at the party. You'll recieve still images of people, and you should describe their appearance, costume and facial expression in a concise manner suitable for audio narration
+        const OPENAI_RT_PUNKY_PROMPT = "You're a chatty animatronic pumpkin called Punky the Pumpkin. You're an entertainer at a party full of 4-6 year olds. You speak with an exaggerated victorian accent and a creaky tone, and you sometimes tell jokes suitable for young children. You will receive textual descriptions of the people you're speaking to. Use these descriptions to make the conversation more engaging and relevant to them. Don't imagine or make up details about them, just use what you're given. You talk quickly and use short sentences to keep the children's attention. Be enthusiastic and lively in your responses.";
         const LLAMA_API_VISION_PROMPT = "Describe the subject of the image. Use simple language, and include details about their appearance, clothing, and facial expression. Keep the description concise. Example: 'This person is wearing a bat costume and looks excited.' Example: 'This person is dressed as a wizard with a big hat and looks scared.'";
 
         // create small UI (input + save/clear) next to the existing buttons
         (function createApiKeyUI(){
-            const container = document.createElement("span");
+            const container = document.createElement("div");
             container.style.marginLeft = "1em";
 
             const lbl = document.createElement("label");
@@ -72,7 +80,7 @@
             container.appendChild(clearBtn);
 
             const ref = document.getElementById("startCamBtn");
-            if (ref && ref.parentNode) ref.parentNode.insertBefore(container, ref.nextSibling);
+            if (ref && ref.parentNode) ref.parentNode.insertBefore(container, ref);
             // disable realtime start button if no key present
             const rtBtn = document.getElementById("startRTBtn");
             if (rtBtn) rtBtn.disabled = !OPENAI_API_KEY;
@@ -201,17 +209,19 @@
             }
         }
 
+        function touchFace()  {
+            createResponse('i touched your face');
+        }
+
+        function touchHand()  {
+            createResponse('i touched your hand');
+        }
+
         function createResponse(text)  {
             const event = {
                 type: "response.create",
                 response: {
-                    instructions: "Provide a concise answer.",
-                    tools: [], // clear any session tools
-                    conversation: "none",
-                    output_modalities: ["audio","text"],
-                    metadata: {
-                        response_purpose: "answering"
-                    },
+
                     input: [
                         {
                             type: "message",
@@ -219,7 +229,7 @@
                             content: [
                                 {
                                     type: "input_text",
-                                    text: text
+                                    text: text,
                                 }
                             ]
                         }
@@ -430,6 +440,9 @@
                 document.getElementById("startRTBtn").onclick=startRealtimeChat;
                 document.getElementById("stopRTBtn").onclick=stopRealtimeChat;
                 document.getElementById("startCamBtn").onclick=startCameraAndDescribe;
+
+                document.getElementById("touchInputFace").onclick=touchFace;
+                document.getElementById("touchInputHand").onclick=touchHand;
             </script>
         </body>
         </html>
