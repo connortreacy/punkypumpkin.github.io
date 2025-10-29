@@ -16,7 +16,67 @@
     <audio id="remoteAudio" autoplay></audio>
     
     <script>
-        const OPENAI_API_KEY = "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";
+        // replace hard-coded API key with a text input + saved value
+        const OPENAI_API_KEY_STORAGE_KEY = "openai_api_key";
+        let OPENAI_API_KEY = localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY) || "";
+
+        const OPENAI_RT_PUNKY_PROMPT = "You're a chatty animatronic pumpkin called Punky the Pumpkin. You're an entertainer at a party full of 4-6 year olds. You speak with an exaggerated victorian accent and a creaky tone, and you sometimes tell jokes suitable for young children. You will receive textual descriptions of the people you're speaking to. Use these descriptions to make the conversation more engaging and relevant to them. Don't imagine or make up details about them, just use what you're given.";
+
+        //const LLAMA_API_VISION_PROMPT = "You are a jovial and observant robot at a kids party. Your job is to provide concise descriptions of the people at the party. You'll recieve still images of people, and you should describe their appearance, costume and facial expression in a concise manner suitable for audio narration
+        const LLAMA_API_VISION_PROMPT = "Describe the subject of the image. Use simple language, and include details about their appearance, clothing, and facial expression. Keep the description concise. Example: 'This person is wearing a bat costume and looks excited.' Example: 'This person is dressed as a wizard with a big hat and looks scared.'";
+
+        // create small UI (input + save/clear) next to the existing buttons
+        (function createApiKeyUI(){
+            const container = document.createElement("span");
+            container.style.marginLeft = "1em";
+
+            const lbl = document.createElement("label");
+            lbl.textContent = "OpenAI API Key: ";
+            lbl.htmlFor = "openaiApiKeyInput";
+            lbl.style.color = "white";
+
+            const input = document.createElement("input");
+            input.type = "password";
+            input.id = "openaiApiKeyInput";
+            input.placeholder = "sk-...";
+            input.style.width = "260px";
+            input.style.marginLeft = "6px";
+            input.value = OPENAI_API_KEY;
+
+            const saveBtn = document.createElement("button");
+            saveBtn.textContent = "Save Key";
+            saveBtn.style.marginLeft = "8px";
+            saveBtn.onclick = () => {
+                OPENAI_API_KEY = input.value.trim();
+                if (OPENAI_API_KEY) {
+                    localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, OPENAI_API_KEY);
+                } else {
+                    localStorage.removeItem(OPENAI_API_KEY_STORAGE_KEY);
+                }
+                document.getElementById("startRTBtn").disabled = !OPENAI_API_KEY;
+            };
+
+            const clearBtn = document.createElement("button");
+            clearBtn.textContent = "Clear";
+            clearBtn.style.marginLeft = "6px";
+            clearBtn.onclick = () => {
+                input.value = "";
+                OPENAI_API_KEY = "";
+                localStorage.removeItem(OPENAI_API_KEY_STORAGE_KEY);
+                document.getElementById("startRTBtn").disabled = true;
+            };
+
+            container.appendChild(lbl);
+            container.appendChild(input);
+            container.appendChild(saveBtn);
+            container.appendChild(clearBtn);
+
+            const ref = document.getElementById("startCamBtn");
+            if (ref && ref.parentNode) ref.parentNode.insertBefore(container, ref.nextSibling);
+            // disable realtime start button if no key present
+            const rtBtn = document.getElementById("startRTBtn");
+            if (rtBtn) rtBtn.disabled = !OPENAI_API_KEY;
+        })();
         const LLAMA_API_KEY = "LLM|789148557223798|L94TB10Dw_tn2j2xTAGdVJSokoc";
         const MODEL_REALTIME = "gpt-4o-realtime-preview";
         const MODEL_LLAMA_VISION = "Llama-4-Scout-17B-16E-Instruct-FP8";//"Llama-4-Maverick-17B-128E-Instruct-FP8";
@@ -49,7 +109,7 @@
                         content: [
                         {
                             type: "text",
-                            text: "You are a jovial and observant robot at a kids party. Your job is to provide concise descriptions of the people at the party. You'll recieve still images of people, and you should describe their appearance, costume and facial expression in a concise manner suitable for audio narration. Examples: 'young boy dressed as superman, holding a juice box', 'toddler with funny pumpkin costume, smiling'"
+                            text: LLAMA_API_VISION_PROMPT
                         }
                         ]
                     },{
@@ -78,7 +138,7 @@
             setInterval(async () => {
                 const base64Image = getVideoFrame();
                 const description = await describeImage(base64Image);
-                sendTextToRealtimeAPI(description);
+                sendAssistantTextToRealtimeAPI(description);
             }, 5000);
         }
         
@@ -93,7 +153,7 @@
                     try {
                         const base64Image = getVideoFrame();
                         const description = await describeImage(base64Image);
-                        sendTextToRealtimeAPI(description);
+                        sendUserTextToRealtimeAPI(description);
                     } catch (err) {
                         console.error("Error in describe/send iteration:", err);
                     }
@@ -108,18 +168,79 @@
         function stopContinuousDescribe() {
             _describeRunning = false;
         }
-        
-        function sendTextToRealtimeAPI(text) {
+
+        function sendAssistantTextToRealtimeAPI(text) {
             const event = {
                 type: "conversation.item.create",
                 item: {
                     type: "message",
                     role: "assistant",
-                    content: [
-                    {
+                    content: [{
                         type: "text",
-                        text: "The following is a description of the person you're talking to. Please use this information to make the conversation more engaging and relevant.",
+                        text: "The following is a description of the person you're talking to: " + text,
+                    }],
+                },
+            };
+            if (dc && dc.readyState === "open") {
+                dc.send(JSON.stringify(event));
+                console.log(`📤 Sent to Realtime API: ${JSON.stringify(event)}`);
+            } else {
+                console.log(`❌ DataChannel not open, cannot send: ${JSON.stringify(event)}`);
+            }
+        }
+
+        function createEmptyResponse() {
+            const event = {
+                type: "response.create",
+            }
+            if (dc && dc.readyState === "open") {
+                dc.send(JSON.stringify(event));
+                console.log(`📤 Sent to Realtime API: ${JSON.stringify(event)}`);
+            } else {
+                console.log(`❌ DataChannel not open, cannot send: ${JSON.stringify(event)}`);
+            }
+        }
+
+        function createResponse(text)  {
+            const event = {
+                type: "response.create",
+                response: {
+                    instructions: "Provide a concise answer.",
+                    tools: [], // clear any session tools
+                    conversation: "none",
+                    output_modalities: ["audio","text"],
+                    metadata: {
+                        response_purpose: "answering"
                     },
+                    input: [
+                        {
+                            type: "message",
+                            role: "user",
+                            content: [
+                                {
+                                    type: "input_text",
+                                    text: text
+                                }
+                            ]
+                        }
+                    ],
+                }
+            }
+            if (dc && dc.readyState === "open") {
+                dc.send(JSON.stringify(event));
+                console.log(`📤 Sent to Realtime API: ${JSON.stringify(event)}`);
+            } else {
+                console.log(`❌ DataChannel not open, cannot send: ${JSON.stringify(event)}`);
+            }
+        }
+        
+        function sendUserTextToRealtimeAPI(text) {
+            const event = {
+                type: "conversation.item.create",
+                item: {
+                    type: "message",
+                    role: "user",
+                    content: [
                     {
                         type: "text",
                         text: text,
@@ -217,6 +338,22 @@
             const audioEl=document.getElementById("remoteAudio");
             pc.ontrack=e=>{
                 audioEl.srcObject=e.streams[0];
+                audioEl.muted = false;              // ensure not muted
+                audioEl.playsInline = true;         // hint for mobile
+                // explicitly start playback (required on some iOS versions)
+                audioEl.play().catch((err)=> {
+                    console.warn("audioEl.play() failed (will try resuming AudioContext):", err);
+                    // fallback: resume/create an AudioContext from the user gesture so audio can play
+                    try {
+                        if (!window._userAudioCtx) {
+                            window._userAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        }
+                        window._userAudioCtx.resume().then(() => {
+                            // try again
+                            audioEl.play().catch(e => console.warn("second play() attempt failed:", e));
+                        });
+                    } catch(e){ console.warn("AudioContext fallback failed:", e); }
+                });
                 // start the visualiser once the remote audio stream is attached
                 startAudioVisualizerOnce(audioEl);
             };
@@ -228,12 +365,10 @@
                 console.log("📡 DataChannel open");
             };
             dc.onmessage=e=>{
-                console.log("📥 DataChannel message:" + JSON.stringify(JSON.parse(e.data)));
-                /*
+                //console.log("📥 DataChannel message:" + JSON.stringify(JSON.parse(e.data)));
                 try{const m=JSON.parse(e.data);
-                    if(m.type==="response.output_text.delta") log("🤖 "+m.delta);
+                    if(m.type==="response.output_text.delta") console.log("🤖 "+m.delta);
                 }catch{}
-                */
             };
             
             // handshake
@@ -298,4 +433,3 @@
             </script>
         </body>
         </html>
-        
