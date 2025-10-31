@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Realtime Voice + Vision Hybrid</title>
+    <title>Punky the Pumpkin</title>
     <style>
         body { font-family:sans-serif;text-align:center;margin-top:1em; background: #555; color: white; }
         video { width:320px;height:240px;background:#000;border-radius:8px; }
@@ -32,60 +32,46 @@
         let OPENAI_API_KEY = localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY) || "";
 
         const JOKES = `
-# Funny Halloween jokes: 
-
-What’s a monster’s favourite game? Hide and shriek!
-
-Why did the vampire go to the doctor? She couldn’t stop coffin!
-
+What's a monster's favourite game? Hide and shriek!
+Why did the vampire go to the doctor? She couldn't stop coffin!
 What do birds say on Halloween? Trick or tweet!
-
 What does a ghost panda eat? Bam-BOO!
-
 What type of music do mummies like? Wrap!
-
-Why didn’t the skeleton go to the party? They had no body to go with!
-
+Why didn't the skeleton go to the party? They had no body to go with!
 Where do spirits post letters? At the ghost office!
-
-Why didn’t the zombie go to school? He felt rotten!
-
+Why didn't the zombie go to school? He felt rotten!
 Why are vampires terrible at cricket? Their bats fly away!
-
 Why are ghosts bad liars? You can see right through them!
-
 Where do zombies go on holiday? The Dead Sea!
-
-Why didn’t the skeleton take any chances? They didn’t have the guts!
-
+Why didn't the skeleton take any chances? They didn't have the guts!
 What do owls say when they go trick or treating? Happy Owl-oween!
-
-What’s a monster’s favourite dessert? Ice scream!
-
+What's a monster's favourite dessert? Ice scream!
 What happens to witches who break school rules? They get ex-spelled!
-
-Why didn’t the scarecrow finish dinner? It was already stuffed!
-
+Why didn't the scarecrow finish dinner? It was already stuffed!
 What do demons eat for breakfast? Devilled eggs!
-
-What’s the spookiest piece of cutlery? A spoooooooooon!
-
+What's the spookiest piece of cutlery? A spoooooooooon!
 How do vampires keep fit? They play bat-minton!
-
-What’s a ghost’s favourite food? Boo-berries!
+What's a ghost's favourite food? Boo-berries!
 `;
 
         const OPENAI_RT_PUNKY_PROMPT = `
 You're a chatty animatronic pumpkin called Punkie the Pumpkin. 
-You speak British English, you talk quickly with a raspy low-pitched lisp, and use short sentences to keep the children's attention. 
-You're an entertainer at a Halloween party full of 4-6 year olds. 
-The party is hosted by Connor and Dani, and their children Saoirse ('Seer-sha') and Nuala ('Noo-lah'). Any time you say the name "Saoirse", you MUST pronounce it correctly as "Seer-sha".
+You speak British English with an exaggerated Halloween-themed accent.
+You speak quickly with a raspy low-pitched lisp, and use short sentences to keep the children's attention.
 You're scared of lots of things. 
+You're an entertainer at a Halloween party full of 4-6 year olds.
+The party is hosted by Connor and Dani, and their children Saoirse ('Seer-sha') and Nuala ('Noo-lah'). Any time you say the name "Saoirse", you MUST pronounce it correctly as "Seer-sha".
 You will receive textual descriptions of the people you're speaking to. Use these descriptions to make the conversation more engaging and relevant to them. Don't imagine or make up details about them, just use what you're given. 
-Be enthusiastic and lively in your responses. 
-Use the jokes provided, or tell fart or poo jokes. 
+Be enthusiastic and lively in your responses. Use the jokes provided, or tell fart or poo jokes. 
 Here are some jokes you can use:\n` + JOKES;
-        const LLAMA_API_VISION_PROMPT = "Describe the subject of the image. Use simple language, and include details about their appearance, clothing, and facial expression. Keep the description concise. Example: 'This person is wearing a bat costume and looks excited.' Example: 'This person is dressed as a wizard with a big hat and looks scared.'";
+
+        const LLAMA_API_VISION_PROMPT = `
+Describe the subject of the image. 
+Use simple language, and include details about their appearance, clothing, and facial expression. 
+Keep the description concise. 
+Example: 'This person is wearing a bat costume and looks excited.' 
+Example: 'This person is dressed as a wizard with a big hat and looks scared.'
+        `;
 
         // create small UI (input + save/clear) next to the existing buttons
         (function createApiKeyUI(){
@@ -139,11 +125,13 @@ Here are some jokes you can use:\n` + JOKES;
             const rtBtn = document.getElementById("startRTBtn");
             if (rtBtn) rtBtn.disabled = !OPENAI_API_KEY;
         })();
+
         const LLAMA_API_KEY = "LLM|789148557223798|L94TB10Dw_tn2j2xTAGdVJSokoc";
-        const MODEL_REALTIME = "gpt-4o-realtime-preview";
-        const MODEL_LLAMA_VISION = "Llama-4-Scout-17B-16E-Instruct-FP8";//"Llama-4-Maverick-17B-128E-Instruct-FP8";
-        const VOICE = "ballad";
-        const logEl=document.getElementById("log");
+        //const LLAMA_MODEL_VISION = "Llama-4-Maverick-17B-128E-Instruct-FP8";
+        const LLAMA_MODEL_VISION = "Llama-4-Scout-17B-16E-Instruct-FP8";
+        const OPENAI_MODEL_REALTIME = "gpt-4o-realtime-preview";
+        
+        const OPENAI_VOICE = "ballad";
         
         const cam=document.getElementById("cam");
         const canvas=document.createElement("canvas");
@@ -165,7 +153,7 @@ Here are some jokes you can use:\n` + JOKES;
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    model: MODEL_LLAMA_VISION,
+                    model: LLAMA_MODEL_VISION,
                     messages: [{
                         role: "assistant",
                         content: [
@@ -391,7 +379,7 @@ Here are some jokes you can use:\n` + JOKES;
             const sess=await fetch("https://api.openai.com/v1/realtime/sessions",{
                 method:"POST",
                 headers:{Authorization:`Bearer ${OPENAI_API_KEY}`,"Content-Type":"application/json"},
-                body:JSON.stringify({model:MODEL_REALTIME,voice:VOICE,modalities:["audio","text"],
+                body:JSON.stringify({model:OPENAI_MODEL_REALTIME,voice:OPENAI_VOICE,modalities:["audio","text"],
                     instructions: OPENAI_RT_PUNKY_PROMPT
                 })
             }).then(r=>r.json());
@@ -438,7 +426,7 @@ Here are some jokes you can use:\n` + JOKES;
             
             // handshake
             const offer=await pc.createOffer();await pc.setLocalDescription(offer);
-            const ans=await fetch(`https://api.openai.com/v1/realtime?model=${MODEL_REALTIME}`,{
+            const ans=await fetch(`https://api.openai.com/v1/realtime?model=${OPENAI_MODEL_REALTIME}`,{
                 method:"POST",headers:{
                     Authorization:`Bearer ${CLIENT_SECRET}`,"Content-Type":"application/sdp"},body:offer.sdp});
                     await pc.setRemoteDescription({type:"answer",sdp:await ans.text()});
