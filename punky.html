@@ -453,7 +453,12 @@ Example: 'This person is dressed as a wizard with a big hat and looks scared.'
                         src.connect(analyser);
                         
                         const buf = new Float32Array(analyser.fftSize);
-                        
+
+                        // track whether we've already signalled the hardware so we don't spam requests
+                        let shakeOn = false;
+                        const START_THRESHOLD = 0.04; // amplitude threshold to consider "playing"
+                        const STOP_THRESHOLD = 0.03;  // drop below to allow retrigger
+
                         // compute RMS amplitude and map to grayscale — quiet = black, loud = white
                         function raf() {
                             analyser.getFloatTimeDomainData(buf);
@@ -467,6 +472,22 @@ Example: 'This person is dressed as a wizard with a big hat and looks scared.'
                             // map amplitude (0..1) to grayscale 0..255
                             const g = Math.round(norm * 255);
                             document.body.style.backgroundColor = `rgb(${g},${g},${g})`;
+
+                            // trigger the LAN endpoint when audio starts (crosses threshold)
+                            try {
+                                if (!shakeOn && norm > START_THRESHOLD) {
+                                    shakeOn = true;
+                                    console.log("🔔 Audio detected — calling shake turn_on endpoint");
+                                    // use no-cors so local IoT endpoints can be hit from browser without CORS error
+                                    fetch("http://192.168.6.2/switch/shake/turn_on", { mode: 'no-cors' })
+                                        .catch(err => console.warn("Failed to call shake endpoint:", err));
+                                } else if (shakeOn && norm < STOP_THRESHOLD) {
+                                    // allow retrigger when audio quiets
+                                    shakeOn = false;
+                                }
+                            } catch (e) {
+                                console.warn("Error triggering shake endpoint:", e);
+                            }
                             
                             requestAnimationFrame(raf);
                         }
